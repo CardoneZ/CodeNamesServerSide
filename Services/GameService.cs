@@ -230,12 +230,9 @@ namespace Services
 
         public void RemovePlayerSession(int idPlayer)
         {
-            currentUsers.Remove(idPlayer);
-            NotifyFriendOnline(idPlayer);
-            Console.WriteLine(currentUsers.Count);
-            foreach (var kvp in currentUsers)
+            if (currentUsers.ContainsKey(idPlayer))
             {
-                Console.WriteLine($"Clave: {kvp.Key}, Valor: {kvp.Value.ToString()}");
+                currentUsers.Remove(idPlayer);
             }
         }
 
@@ -398,7 +395,7 @@ namespace Services
             }
         }
     }   
-
+    // ES EL REPO DE CARDONE
     public partial class GameService : IGameManagerService
     {
         private List<Logic.Room> globalRooms = new List<Room>();
