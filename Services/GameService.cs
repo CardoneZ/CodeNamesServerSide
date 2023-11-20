@@ -17,7 +17,7 @@ namespace Services
 
     public partial class GameService : IPlayerManagerService, IFriendListService
     {
-        public Dictionary<int, IFriendListServiceCallback> currentUsers = new Dictionary<int, IFriendListServiceCallback>();
+        public Dictionary<int, IPlayerManagerServiceCallbak> currentUsers = new Dictionary<int, IPlayerManagerServiceCallbak>();
 
         public void AddUserAccountToDatabase(string username, string email, string password)
         {
@@ -35,45 +35,18 @@ namespace Services
             }
         }
 
-        public string GetData(int value)
-        {
-            return string.Format("You entered: {0}", value);
-        }
-
-        public void ShowUsersAccounts()
-        {
-            using (var databaseContext = new CodeNamesBDEntities())
-            {
-                var user = new DataModels.Player();
-                var query = from b in databaseContext.PlayerSet
-                            orderby b.IdPlayer
-                            select b;
-
-                Console.WriteLine("All blogs in the database:");
-                foreach (var item in query)
-                {
-                    Console.WriteLine(item.Username);
-                    Console.WriteLine(item.Email);
-                }
-            }
-        }
-
         public DataModels.Player Login(string nickname, string password)
         {
             using (var databaseContext = new CodeNamesBDEntities())
             {
                 var playerAcountt = databaseContext.PlayerSet
                    .FirstOrDefault(u => u.Username == nickname && u.Password == password);
-
                 return playerAcountt;
-
             }
-
-
         }
 
 
-        public Dictionary<int, IFriendListServiceCallback> GetCurrentUsers()
+        public Dictionary<int, IPlayerManagerServiceCallbak> GetCurrentUsers()
         {
             return currentUsers;
         }
@@ -88,84 +61,37 @@ namespace Services
                 return request;
             }
         }
+
+        public void SavePlayerSession(int idPlayer)
+        {
+            IPlayerManagerServiceCallbak context = System.ServiceModel.OperationContext.Current.GetCallbackChannel<IPlayerManagerServiceCallbak>();
+            currentUsers.Add(idPlayer, context);
+            NotifyFriendOnline(idPlayer);
+            Console.WriteLine(currentUsers.Count);
+            foreach (var kvp in currentUsers)
+            {
+                Console.WriteLine($"Clave: {kvp.Key}, Valor: {kvp.Value.ToString()}");
+            }
+        }
+
+        public void RemovePlayerSession(int idPlayer)
+        {
+            if (currentUsers.ContainsKey(idPlayer))
+            {
+                currentUsers.Remove(idPlayer);
+            }
+        }
+
+        public void UpdatePlayerSession(int idPlayer)
+        {
+            IPlayerManagerServiceCallbak context = System.ServiceModel.OperationContext.Current.GetCallbackChannel<IPlayerManagerServiceCallbak>();
+            currentUsers[idPlayer] = context;
+        }
+
     }
 
-        public partial class GameService : IFriendListService
-    {
-        /*public void SendFriendshipRequest(int idSender, int idReceiver)
+       public partial class GameService : IFriendListService
         {
-            using (var databaseContext = new CodeNamesBDEntities())
-            {
-                var frienshipRequest = new DataModels.FriendshipRequest
-                {
-                    IdReceiverPlayer = idReceiver,
-                    IdSenderPlayer = idSender
-                };
-
-                databaseContext.FriendshipRequestSet.Add(frienshipRequest);
-                databaseContext.SaveChanges();
-            }
-        }
-
-        public void ResponseToFriendshipRequest(String response, int idRequest)
-        {
-            var databaseContext = new CodeNamesBDEntities();
-            FriendshipRequest frienshipRequest = new FriendshipRequest();
-            using (databaseContext)
-            {
-                frienshipRequest = databaseContext.FriendshipRequestSet.FirstOrDefault(u => u.IdFriendshipRequest == idRequest);
-            }
-
-            if (response == "accept")
-            {
-                using (databaseContext)
-                {
-                    var friendship = new DataModels.Friendship
-                    {
-                        IdPlayer1 = frienshipRequest.IdReceiverPlayer,
-                        IdPlayer2 = frienshipRequest.IdSenderPlayer
-                    };
-
-                    databaseContext.FriendshipSet.Add(friendship);
-                    databaseContext.SaveChanges();
-                }
-            }
-
-            databaseContext.FriendshipRequestSet.Remove(frienshipRequest);
-            databaseContext.SaveChanges();
-        }
-
-        public List<DataModels.Player> GetGlobalUsers(int idUser)
-        {
-            List<DataModels.Player> userList = new List<DataModels.Player>();
-            int currentPlayerId = idUser;
-
-            using (var databaseContext = new CodeNamesBDEntities())
-            {
-                userList = databaseContext.PlayerSet.Where(u => u.IdPlayer != currentPlayerId).ToList();
-
-            }
-            return userList;
-
-        }
-
-        public void GetFriends(int idUser)
-        {
-            List<DataModels.Player> friendList = new List<DataModels.Player>();
-
-            using (var databaseContext = new CodeNamesBDEntities())
-            {
-                var friendIds = databaseContext.FriendshipSet
-                    .Where(f => f.IdPlayer1 == idUser || f.IdPlayer2 == idUser)
-                    .Select(f => f.IdPlayer1 == idUser ? f.IdPlayer2 : f.IdPlayer1)
-                    .ToList();
-
-                friendList = databaseContext.PlayerSet
-                    .Where(p => friendIds.Contains(p.IdPlayer))
-                    .ToList();
-            }
-            System.ServiceModel.OperationContext.Current.GetCallbackChannel<IFriendListServiceCallback>().ShowFriends(friendList);
-        }*/
 
         public int MakeFriendRequest(int IdPlayer, string namePlayer)
         {
@@ -215,28 +141,6 @@ namespace Services
             Console.WriteLine(Result);
             return Result;
         }
-
-       public void SavePlayerSession(int idPlayer)
-        {
-            IFriendListServiceCallback context = System.ServiceModel.OperationContext.Current.GetCallbackChannel<IFriendListServiceCallback>();
-            currentUsers.Add(idPlayer, context);
-            NotifyFriendOnline(idPlayer);
-            Console.WriteLine(currentUsers.Count);
-            foreach (var kvp in currentUsers)
-            {
-                Console.WriteLine($"Clave: {kvp.Key}, Valor: {kvp.Value.ToString()}");
-            }
-        }
-
-        public void RemovePlayerSession(int idPlayer)
-        {
-            if (currentUsers.ContainsKey(idPlayer))
-            {
-                currentUsers.Remove(idPlayer);
-            }
-        }
-
-
 
         public int AcceptFriendRequest(int IdRequest)
         {
@@ -308,12 +212,14 @@ namespace Services
 
         private void NotifyRequest(int idPlayer)
         {
-            foreach (var user in currentUsers)
+            var operationContext = System.ServiceModel.OperationContext.Current;
+            if (operationContext != null)
             {
-                if (idPlayer == user.Key)
+                var friendListCallback = operationContext.GetCallbackChannel<IFriendListServiceCallback>();
+
+                if (friendListCallback != null)
                 {
-                    Console.WriteLine(idPlayer);
-                    user.Value.UpdateFriendRequest(idPlayer);
+                    friendListCallback.UpdateFriendRequest(idPlayer);
                     Console.WriteLine("Notifica la solicitud de amistad");
                 }
             }
@@ -359,10 +265,10 @@ namespace Services
         }
 
 
-        public void OnlineStatus(int idPlayer)
+        public void UserOnlineStatus(int idPlayer)
         {
             var friends = GetFriends(idPlayer);
-            Dictionary<int, IFriendListServiceCallback> players = GetCurrentUsers();
+            Dictionary<int, IPlayerManagerServiceCallbak> players = GetCurrentUsers();
 
             foreach (var friend in friends)
             {
@@ -377,11 +283,7 @@ namespace Services
             }
         }
 
-        public void UpdatePlayerSession(int idPlayer)
-        {
-            IFriendListServiceCallback context = System.ServiceModel.OperationContext.Current.GetCallbackChannel<IFriendListServiceCallback>();
-            currentUsers[idPlayer] = context;
-        }
+
 
         private void NotifyFriendOnline(int idPlayer)
         {
@@ -390,12 +292,22 @@ namespace Services
             {
                 if (currentUsers.ContainsKey(friend.PlayerId))
                 {
-                    currentUsers[friend.PlayerId].UpdateFriendDisplay();
+                    var callback = currentUsers[friend.PlayerId] as IFriendListServiceCallback;
+
+                    if (callback != null)
+                    {
+                        // Utiliza el contexto actual para llamar al método del callback
+                        var operationContext = System.ServiceModel.OperationContext.Current;
+                        if (operationContext != null)
+                        {
+                            var friendServiceCallback = operationContext.GetCallbackChannel<IFriendListServiceCallback>();
+                            friendServiceCallback.UpdateFriendDisplay();
+                        }
+                    }
                 }
             }
         }
     }   
-    // ES EL REPO DE CARDONE
     public partial class GameService : IGameManagerService
     {
         private List<Logic.Room> globalRooms = new List<Room>();
