@@ -16,18 +16,10 @@ namespace Services
         int MakeFriendRequest(int IdPlayer, string namePlayer);
 
         [OperationContract]
-        void SavePlayerSession(int idPlayer);
-        [OperationContract]
-        void RemovePlayerSession(int idPlayer);
-
-        [OperationContract]
         int AcceptFriendRequest(int IdRequest);
 
         [OperationContract]
         int RejectFriendRequest(int IdRequest);
-
-        [OperationContract]
-         void UpdatePlayerSession(int idPlayer);
 
         [OperationContract]
         List<Logic.Player> GetFriends(int idPlayer);

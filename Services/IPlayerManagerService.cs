@@ -11,7 +11,7 @@ namespace Services
 //Aquí van las firmas de la lógica relacionada a la gestión del usuario
 
 {
-    [ServiceContract]
+    [ServiceContract(CallbackContract = typeof(IPlayerManagerServiceCallbak))]
     public interface IPlayerManagerService
     {
         [OperationContract]
@@ -21,10 +21,19 @@ namespace Services
         Player Login(String nickname, String password);
 
         [OperationContract]
-        void ShowUsersAccounts();
+        Dictionary<int, IPlayerManagerServiceCallbak> GetCurrentUsers();
 
         [OperationContract]
-        Dictionary<int, IFriendListServiceCallback> GetCurrentUsers();
+        void SavePlayerSession(int idPlayer);
+        [OperationContract]
+        void RemovePlayerSession(int idPlayer);
+
+        [OperationContract]
+        void UpdatePlayerSession(int idPlayer);
+    }
+    [ServiceContract]
+    public interface IPlayerManagerServiceCallbak
+    {
 
     }
 
